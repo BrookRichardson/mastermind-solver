@@ -28,6 +28,8 @@ pool is rebuilt immediately.
   from the 259,459,200 orderings of 8 distinct pegs instead of all 15⁸.
 - **Pick the most informative guess** — off draws a survivor at random; on tries 80 survivors against
   400 others and keeps whichever splits the field smallest.
+- **Text size** — the `−` / `+` buttons in the masthead scale the whole board between 80% and 160%
+  (or press `-` and `+`). The setting sticks with the rest of the board.
 
 ## How it works
 

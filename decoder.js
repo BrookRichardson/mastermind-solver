@@ -129,6 +129,7 @@ const state = {
   fieldCodes: [],
   stats: null,
   suggestion: null,
+  scale: 1,
   solving: false,
   run: 0
 };
@@ -555,6 +556,34 @@ function parseTyped(raw) {
   return { code, filled: parts.length };
 }
 
+/* ── text size ───────────────────────────────────────────── */
+const SCALES = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6];
+
+function applyScale() {
+  const root = document.documentElement;
+  root.style.setProperty('--scale', state.scale);
+  $('zoomVal').textContent = Math.round(state.scale * 100) + '%';
+  $('zoomOut').disabled = state.scale <= SCALES[0];
+  $('zoomIn').disabled = state.scale >= SCALES[SCALES.length - 1];
+  syncWidth();
+}
+
+// Zoom rescales the layout but not the viewport, so the breakpoints work off the
+// width the page actually gets to lay out in.
+function syncWidth() {
+  const w = window.innerWidth / state.scale;
+  document.documentElement.dataset.w = w <= 560 ? 'sm' : w <= 960 ? 'md' : 'lg';
+}
+
+function stepScale(dir) {
+  const i = SCALES.indexOf(state.scale);
+  const next = SCALES[Math.min(Math.max((i < 0 ? SCALES.indexOf(1) : i) + dir, 0), SCALES.length - 1)];
+  if (next === state.scale) return;
+  state.scale = next;
+  applyScale();
+  save();
+}
+
 /* ── persistence ─────────────────────────────────────────── */
 function save() {
   try {
@@ -562,7 +591,8 @@ function save() {
       guesses: state.guesses,
       poolSize: state.poolSize,
       allowRepeats: state.allowRepeats,
-      optimise: state.optimise
+      optimise: state.optimise,
+      scale: state.scale
     }));
   } catch (e) { /* private mode — board just won't persist */ }
 }
@@ -581,6 +611,7 @@ function load() {
     if (d.poolSize) state.poolSize = d.poolSize;
     if (typeof d.allowRepeats === 'boolean') state.allowRepeats = d.allowRepeats;
     if (typeof d.optimise === 'boolean') state.optimise = d.optimise;
+    if (SCALES.includes(d.scale)) state.scale = d.scale;
   } catch (e) { /* ignore a corrupt board */ }
 }
 
@@ -592,6 +623,12 @@ function init() {
   $('poolSize').value = state.poolSize;
   $('repeats').checked = state.allowRepeats;
   $('optimise').checked = state.optimise;
+
+  applyScale();
+  window.addEventListener('resize', syncWidth);
+
+  $('zoomIn').addEventListener('click', () => stepScale(1));
+  $('zoomOut').addEventListener('click', () => stepScale(-1));
 
   renderRail();
   renderPalette();
@@ -645,6 +682,8 @@ function init() {
   // Keyboard: digits fill the selected slot, arrows move, backspace clears.
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '+' || e.key === '=') { stepScale(1); return; }
+    if (e.key === '-' || e.key === '_') { stepScale(-1); return; }
     if (e.key === 'ArrowRight') { state.sel = Math.min(state.sel + 1, LEN - 1); renderRows(); }
     else if (e.key === 'ArrowLeft') { state.sel = Math.max(state.sel - 1, 0); renderRows(); }
     else if (e.key === 'Backspace') {
