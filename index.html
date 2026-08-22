@@ -38,6 +38,12 @@
         <span class="note" id="rowCount">no guesses yet</span>
       </div>
       <div class="panel-bd">
+        <div class="legend">
+          <span><i class="k2 filled"></i> right peg, right slot</span>
+          <span><i class="k2 ring"></i> right peg, wrong slot</span>
+          <span>click a key peg to change it</span>
+        </div>
+
         <div class="rows" id="rows"></div>
 
         <p class="entry-hint">Pick a slot, then a peg. Or type the code as numbers.</p>
@@ -46,15 +52,8 @@
         <div class="entry-tools">
           <input type="text" id="typed" placeholder="e.g. 3 7 12 0 5 5 9 14" aria-label="Type the code as numbers" autocomplete="off" spellcheck="false">
           <button class="btn" id="clearDraft">Clear row</button>
-          <button class="btn primary" id="addGuess">Add guess</button>
         </div>
         <div class="err" id="err" role="status"></div>
-
-        <div class="legend">
-          <span><i class="k2 filled"></i> right peg, right slot</span>
-          <span><i class="k2 ring"></i> right peg, wrong slot</span>
-          <span>click a key peg to change it</span>
-        </div>
 
         <div id="wonBox"></div>
 

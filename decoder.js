@@ -245,7 +245,14 @@ function renderRows() {
   row.appendChild(el('div', 'idx', String(state.guesses.length + 1)));
   row.appendChild(codeStrip(d.code, { slots: true, selected: state.sel }));
   row.appendChild(keyGrid(d.key, i => { d.key[i] = (d.key[i] + 1) % 3; renderRows(); }));
-  row.appendChild(el('div'));
+  const saveBtn = el('button', 'btn primary save', 'Save');
+  saveBtn.type = 'button';
+  saveBtn.id = 'saveGuess';
+  saveBtn.title = 'Record this guess';
+  saveBtn.setAttribute('aria-label', 'Save guess ' + (state.guesses.length + 1));
+  saveBtn.disabled = state.solving;
+  saveBtn.addEventListener('click', addGuess);
+  row.appendChild(saveBtn);
   rows.appendChild(row);
 
   const n = state.guesses.length;
@@ -427,7 +434,8 @@ async function solve(animatedIn) {
 
 function setBusy(on) {
   $('suggest').disabled = on;
-  $('addGuess').disabled = on;
+  const save = $('saveGuess');
+  if (save) save.disabled = on;
 }
 
 function shuffled(arr) {
@@ -488,8 +496,14 @@ function placePeg(v) {
   $('err').textContent = '';
 }
 
+/* Mirror the draft into the text field so pegs you click land there too. A plain number
+   list can only spell out a filled prefix, so a code with a hole in it leaves the field blank. */
 function syncTyped() {
-  $('typed').value = state.draft.code.every(c => c != null) ? state.draft.code.join(' ') : '';
+  const code = state.draft.code;
+  let n = 0;
+  while (n < LEN && code[n] != null) n++;
+  const holed = code.slice(n).some(c => c != null);
+  $('typed').value = holed ? '' : code.slice(0, n).join(' ');
 }
 
 function clearDraft() {
@@ -635,7 +649,6 @@ function init() {
   renderRows();
   renderWon();
 
-  $('addGuess').addEventListener('click', addGuess);
   $('clearDraft').addEventListener('click', clearDraft);
 
   $('typed').addEventListener('input', e => {

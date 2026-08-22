@@ -79,7 +79,7 @@ button.slot:hover .hole{box-shadow:inset 0 3px 6px rgba(0,0,0,.9), 0 0 0 2px rgb
 .rows{display:flex;flex-direction:column;gap:9px}
 .row{display:grid;grid-template-columns:22px 1fr auto 24px;align-items:center;gap:12px;
   padding:8px;border-radius:11px;background:rgba(0,0,0,.22);border:1px solid rgba(240,232,218,.05)}
-.row.draft{background:rgba(217,164,65,.045);border-color:rgba(217,164,65,.24)}
+.row.draft{grid-template-columns:22px 1fr auto auto;background:rgba(217,164,65,.045);border-color:rgba(217,164,65,.24)}
 .row.solved{border-color:rgba(217,164,65,.55);background:rgba(217,164,65,.09)}
 .row .idx{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);text-align:right}
 .code{display:flex;gap:5px;flex-wrap:wrap}
@@ -92,6 +92,7 @@ button.slot:hover .hole{box-shadow:inset 0 3px 6px rgba(0,0,0,.9), 0 0 0 2px rgb
 .key.close{background:transparent;box-shadow:inset 0 0 0 2px var(--bone)}
 .tally{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);white-space:nowrap;line-height:1.4}
 .tally b{color:var(--bone);font-weight:500}
+.btn.save{padding:7px 13px;font-size:12.5px;white-space:nowrap}
 .del{color:var(--dimmer);font-size:16px;line-height:1;padding:4px;border-radius:6px}
 .del:hover{color:var(--bad);background:rgba(226,85,74,.1)}
 
@@ -162,7 +163,7 @@ input[type=checkbox]{accent-color:var(--brass);width:15px;height:15px}
 .won{margin-top:16px;padding:15px 16px;border-radius:11px;background:rgba(217,164,65,.12);border:1px solid rgba(217,164,65,.4)}
 .won h3{font-size:19px;margin-bottom:4px}
 .won p{margin:0;font-size:13px;color:var(--dim)}
-.legend{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);margin-top:16px;
+.legend{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);margin:0 0 12px;
   display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 .legend span{display:flex;gap:6px;align-items:center}
 .legend .k2{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
@@ -175,9 +176,12 @@ footer{margin-top:26px;font-size:12px;color:var(--dimmer);line-height:1.6;max-wi
 :root[data-w="md"],:root[data-w="sm"]{--peg:28px}
 :root[data-w="md"] .console,:root[data-w="sm"] .console{grid-template-columns:1fr}
 :root[data-w="md"] .row,:root[data-w="sm"] .row{grid-template-columns:18px 1fr auto 22px;gap:8px}
+:root[data-w="md"] .row.draft{grid-template-columns:18px 1fr auto auto}
 :root[data-w="sm"]{--peg:26px}
 :root[data-w="sm"] .wrap{padding:20px 14px 44px}
 :root[data-w="sm"] .row{grid-template-columns:1fr;gap:10px}
+:root[data-w="sm"] .row.draft{grid-template-columns:1fr}
+:root[data-w="sm"] .row.draft .save{justify-self:start}
 :root[data-w="sm"] .row .idx{text-align:left}
 :root[data-w="sm"] .field{grid-template-columns:repeat(auto-fill,minmax(58px,1fr))}
 @media (prefers-reduced-motion:reduce){
