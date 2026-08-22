@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decoder — a Mastermind solver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,SOFT,WONK,wght@9..144,0..100,0..1,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="decoder.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div class="mark">
+      <h1>Decoder</h1>
+      <span class="sub">consistency solver</span>
+    </div>
+    <div class="spec">
+      <span class="chip">code length <b id="chipLen">8</b></span>
+      <span class="chip">pegs <b>0&ndash;14</b></span>
+      <span class="chip">search space <b id="chipSpace">2,562,890,625</b></span>
+    </div>
+  </header>
+  <div class="rail" id="rail" aria-hidden="true"></div>
+
+  <main class="console">
+
+    <section class="panel" aria-labelledby="boardHd">
+      <div class="panel-hd">
+        <h2 id="boardHd">The board</h2>
+        <span class="note" id="rowCount">no guesses yet</span>
+      </div>
+      <div class="panel-bd">
+        <div class="rows" id="rows"></div>
+
+        <p class="entry-hint">Pick a slot, then a peg. Or type the code as numbers.</p>
+        <div class="palette" id="palette"></div>
+
+        <div class="entry-tools">
+          <input type="text" id="typed" placeholder="e.g. 3 7 12 0 5 5 9 14" aria-label="Type the code as numbers" autocomplete="off" spellcheck="false">
+          <button class="btn" id="clearDraft">Clear row</button>
+          <button class="btn primary" id="addGuess">Add guess</button>
+        </div>
+        <div class="err" id="err" role="status"></div>
+
+        <div class="legend">
+          <span><i class="k2 filled"></i> right peg, right slot</span>
+          <span><i class="k2 ring"></i> right peg, wrong slot</span>
+          <span>click a key peg to change it</span>
+        </div>
+
+        <div id="wonBox"></div>
+
+        <div class="sugg empty" id="sugg">
+          <div class="sugg-hd">
+            <span class="sugg-lbl">Next guess</span>
+            <span class="sugg-btns">
+              <button class="btn" id="suggest">Suggest a guess</button>
+              <button class="btn" id="useSugg" disabled>Use it</button>
+            </span>
+          </div>
+          <div class="code" id="suggCode"></div>
+          <div class="why" id="suggWhy">Nothing suggested yet.</div>
+        </div>
+      </div>
+      <div class="settings">
+        <label>Pool size <input type="number" id="poolSize" min="50" max="20000" step="50" value="1000"></label>
+        <label><input type="checkbox" id="repeats" checked> Code can repeat pegs</label>
+        <label><input type="checkbox" id="optimise" checked> Pick the most informative guess</label>
+        <button class="btn" id="reset">Clear board</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="fieldHd">
+      <div class="panel-hd">
+        <h2 id="fieldHd">Candidate field</h2>
+        <span class="note" id="fieldNote">every code is still possible</span>
+      </div>
+      <div class="panel-bd">
+        <div class="field" id="field" aria-hidden="true"></div>
+        <div class="bar" id="bar"><i></i></div>
+        <div class="method" id="method"></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k">In the pool</div><div class="v" id="sPool">&mdash;</div></div>
+        <div class="stat"><div class="k">Survival rate</div><div class="v" id="sRate">&mdash;</div></div>
+        <div class="stat"><div class="k">Codes left, est.</div><div class="v" id="sLeft">&mdash;</div></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    Each solve throws fresh random codes at your feedback and keeps only the ones that would have produced exactly the
+    same key pegs on every row. The field above shows a sample of the survivors &mdash; one dotted strip per candidate code.
+  </footer>
+</div>
+<script src="decoder.js"></script>
+</body>
+</html>
