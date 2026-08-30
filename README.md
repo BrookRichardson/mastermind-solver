@@ -1,6 +1,6 @@
 # Decoder — a Mastermind solver
 
-A single web page that cracks 8-peg Mastermind codes drawn from 15 colours (pegs numbered 0–14).
+A single web page ([Link To Live Page](https://brookrichardson.github.io/mastermind-solver/)) that cracks 8-peg Mastermind codes drawn from 15 colours (pegs numbered 0–14).
 Record the guesses you have already played and the key pegs you got back; the solver keeps a pool of
 codes that are still possible and hands you the next guess.
 
