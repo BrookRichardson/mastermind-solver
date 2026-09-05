@@ -1,23 +1,73 @@
 /* Decoder — Mastermind solver by consistency sampling.
-   Code length 8, pegs numbered 0–14. */
+   The code length and the number of pegs are both configurable; the board
+   defaults to 8 slots drawn from 15 pegs numbered 0–14. */
 
-const LEN = 8;
-const NCOL = 15;
-const SPACE = Math.pow(NCOL, LEN);          // 2,562,890,625
+const LIMITS = { len: [2, 16], ncol: [2, 24] };
+const DEF_LEN = 8, DEF_NCOL = 15;
 const FIELD_MAX = 320;                       // candidate strips drawn
-const STORE_KEY = 'decoder.v1';
+const STORE_KEY = 'decoder.v2';
 
-const PALETTE = [
+/* Fifteen hand-picked pegs. A smaller set takes an even spread of these so the
+   colours stay far apart; a larger one falls back to a generated wheel. */
+const BASE_PALETTE = [
   '#E23B3B', '#F2712C', '#F3B41B', '#DCE84B', '#8FCB3F',
   '#35A85B', '#2FBFA0', '#35B7E8', '#3D6FE0', '#6C4BE0',
   '#A64BD6', '#E45BB8', '#F09090', '#9C6B45', '#C9CBD6'
 ];
 
-/* ── scoring ─────────────────────────────────────────────── */
-// A result is packed as exact*16 + close.
-const cntA = new Int32Array(NCOL);
-const cntB = new Int32Array(NCOL);
+const clamp = (n, [lo, hi]) => n < lo ? lo : n > hi ? hi : n;
 
+function hslHex(h, s, l) {
+  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
+  const f = k => {
+    const t = (k + h / 30) % 12;
+    const v = l / 100 - a * Math.max(-1, Math.min(t - 3, 9 - t, 1));
+    return Math.round(v * 255).toString(16).padStart(2, '0');
+  };
+  return '#' + f(0) + f(8) + f(4);
+}
+
+function buildPalette(n) {
+  const base = BASE_PALETTE;
+  if (n <= base.length) {
+    return Array.from({ length: n }, (_, i) =>
+      base[n === 1 ? 0 : Math.round(i * (base.length - 1) / (n - 1))]);
+  }
+  // Alternating lightness keeps neighbouring hues apart once the wheel gets crowded.
+  return Array.from({ length: n }, (_, i) =>
+    hslHex((i * 360 / n + 6) % 360, i % 2 ? 54 : 72, i % 3 === 1 ? 68 : 54));
+}
+
+function relLum(hex) {
+  const v = i => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * v(1) + 0.7152 * v(3) + 0.0722 * v(5);
+}
+
+/* ── board configuration ─────────────────────────────────── */
+/* Everything below reads LEN / NCOL, so changing the board is a matter of
+   calling configure() and re-rendering. */
+let LEN, NCOL, SPACE, PACK, PALETTE, LIGHT_PEG, cntA, cntB, bag;
+
+function configure(len, ncol) {
+  LEN = clamp(Math.round(len) || DEF_LEN, LIMITS.len);
+  NCOL = clamp(Math.round(ncol) || DEF_NCOL, LIMITS.ncol);
+  SPACE = Math.pow(NCOL, LEN);
+  PACK = LEN + 1;                            // a result packs as exact*PACK + close
+  PALETTE = buildPalette(NCOL);
+  LIGHT_PEG = PALETTE.map(h => relLum(h) > 0.32);
+  cntA = new Int32Array(NCOL);
+  cntB = new Int32Array(NCOL);
+  bag = new Uint8Array(NCOL);
+}
+configure(DEF_LEN, DEF_NCOL);
+
+// Distinct pegs are only possible while the code is no longer than the peg set.
+const canDistinct = () => LEN <= NCOL;
+
+/* ── scoring ─────────────────────────────────────────────── */
 function scoreOf(a, b) {
   let exact = 0;
   cntA.fill(0); cntB.fill(0);
@@ -28,11 +78,12 @@ function scoreOf(a, b) {
   }
   let close = 0;
   for (let c = 0; c < NCOL; c++) close += cntA[c] < cntB[c] ? cntA[c] : cntB[c];
-  return exact * 16 + close;
+  return exact * PACK + close;
 }
 
-const packed = (exact, close) => exact * 16 + close;
-const unpack = p => [p >> 4, p & 15];
+const packed = (exact, close) => exact * PACK + close;
+const exactOf = p => (p / PACK) | 0;
+const closeOf = p => p % PACK;
 
 function keyCounts(key) {
   let exact = 0, close = 0;
@@ -51,7 +102,7 @@ function costOf(code, cons) {
   let total = 0;
   for (let i = 0; i < cons.length; i++) {
     const s = scoreOf(code, cons[i].code), t = cons[i].target;
-    total += Math.abs((s >> 4) - (t >> 4)) + Math.abs((s & 15) - (t & 15));
+    total += Math.abs(exactOf(s) - exactOf(t)) + Math.abs(closeOf(s) - closeOf(t));
   }
   return total;
 }
@@ -60,7 +111,7 @@ function costOf(code, cons) {
 const randInt = n => (Math.random() * n) | 0;
 
 function randomInto(code, allowRepeats) {
-  if (allowRepeats) {
+  if (allowRepeats || !canDistinct()) {
     for (let i = 0; i < LEN; i++) code[i] = randInt(NCOL);
   } else {
     // partial Fisher–Yates over 0..NCOL-1
@@ -72,12 +123,30 @@ function randomInto(code, allowRepeats) {
     }
   }
 }
-const bag = new Uint8Array(NCOL);
 
-/* Guided repair: hill-climb a random code until it satisfies every row.
-   Used only when uniform sampling has starved. */
-function hillClimb(code, cons, allowRepeats) {
-  randomInto(code, allowRepeats);
+/* Nudge a code off a known-good spot without breaking the distinct-peg rule. */
+function kick(code, allowRepeats) {
+  const i = randInt(LEN);
+  if (allowRepeats || !canDistinct()) { code[i] = randInt(NCOL); return; }
+  for (let t = 0; t < 8; t++) {
+    const v = randInt(NCOL);
+    if (!code.includes(v)) { code[i] = v; return; }
+  }
+  const j = randInt(LEN), tmp = code[i]; code[i] = code[j]; code[j] = tmp;
+}
+
+/* Guided repair: hill-climb a code until it satisfies every row. Used only when
+   uniform sampling has starved. Given a seed — a code that already fits — it
+   restarts from a kicked copy of it, which converges far more often than a
+   random restart once the rows pile up or the code gets long. */
+function hillClimb(code, cons, allowRepeats, seed) {
+  if (seed) {
+    for (let i = 0; i < LEN; i++) code[i] = seed[i];
+    const kicks = 1 + randInt(2);
+    for (let k = 0; k < kicks; k++) kick(code, allowRepeats);
+  } else {
+    randomInto(code, allowRepeats);
+  }
   let cur = costOf(code, cons);
   let sideways = 0;
 
@@ -119,13 +188,14 @@ function hillClimb(code, cons, allowRepeats) {
 
 /* ── state ───────────────────────────────────────────────── */
 const state = {
-  guesses: [],                                  // { code:[8], key:[8 of 0|1|2] }
-  draft: { code: Array(LEN).fill(null), key: Array(LEN).fill(0) },
+  guesses: [],                                  // { code:[LEN], key:[LEN of 0|1|2] }
+  draft: { code: Array(LEN).fill(null), key: emptyKey() },
   sel: 0,
   poolSize: 1000,
   allowRepeats: true,
   optimise: true,
   pool: [],
+  seeds: [],                                    // last non-empty pool, kept for restarts
   fieldCodes: [],
   stats: null,
   suggestion: null,
@@ -145,15 +215,6 @@ function el(tag, cls, text) {
 const yieldUI = () => new Promise(r => setTimeout(r, 0));
 const fmt = n => Math.round(n).toLocaleString('en-US');
 
-function relLum(hex) {
-  const v = i => {
-    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * v(1) + 0.7152 * v(3) + 0.0722 * v(5);
-}
-const LIGHT_PEG = PALETTE.map(h => relLum(h) > 0.32);
-
 function pegEl(v, tag) {
   const n = el(tag || 'span', 'peg ' + (LIGHT_PEG[v] ? 'on-light' : 'on-dark'), String(v));
   n.style.background = PALETTE[v];
@@ -170,6 +231,8 @@ function renderRail() {
 function renderPalette() {
   const p = $('palette');
   p.innerHTML = '';
+  // Past fifteen pegs the row wraps rather than shrinking the pegs to nothing.
+  p.style.setProperty('--pcols', Math.min(NCOL, 15));
   for (let v = 0; v < NCOL; v++) {
     const b = pegEl(v, 'button');
     b.type = 'button';
@@ -197,22 +260,69 @@ function codeStrip(code, opts) {
   return wrap;
 }
 
-function keyGrid(key, onCycle) {
+/* A row's feedback is two counts: black pegs (right peg, right slot) and white
+   pegs (right peg, wrong slot). The two spinners clamp against each other, since
+   a row can never hold more key pegs than the code has slots. */
+function keyBox(key, onChange) {
   const box = el('div', 'keys');
-  const grid = el('div', 'keygrid');
-  key.forEach((k, i) => {
-    const b = el('button', 'key' + (k === 1 ? ' exact' : k === 2 ? ' close' : ''));
-    b.type = 'button';
-    b.setAttribute('aria-label', 'Key peg ' + (i + 1) + ': ' + (k === 1 ? 'right peg, right slot' : k === 2 ? 'right peg, wrong slot' : 'empty'));
-    b.addEventListener('click', () => onCycle(i));
-    grid.appendChild(b);
-  });
-  const { exact, close } = keyCounts(key);
-  const tally = el('div', 'tally');
-  tally.innerHTML = '<b>' + exact + '</b> exact<br><b>' + close + '</b> close';
-  box.appendChild(grid);
-  box.appendChild(tally);
+  const inputs = {};
+
+  const sync = () => {
+    inputs.exact.value = key.exact;
+    inputs.close.value = key.close;
+    inputs.exact.max = LEN - key.close;
+    inputs.close.max = LEN - key.exact;
+  };
+
+  const build = kind => {
+    const isExact = kind === 'exact';
+    const lab = el('label', 'keyin');
+    lab.title = isExact ? 'Black pegs — right peg, right slot' : 'White pegs — right peg, wrong slot';
+    lab.appendChild(el('i', 'k2 ' + (isExact ? 'filled' : 'ring')));
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'keynum';
+    input.min = '0';
+    input.step = '1';
+    input.inputMode = 'numeric';
+    input.setAttribute('aria-label', isExact
+      ? 'Black key pegs — right peg, right slot'
+      : 'White key pegs — right peg, wrong slot');
+    input.addEventListener('change', () => {
+      const other = isExact ? 'close' : 'exact';
+      key[kind] = clamp(Math.round(Number(input.value)) || 0, [0, LEN - key[other]]);
+      sync();
+      onChange();
+    });
+
+    inputs[kind] = input;
+    lab.appendChild(input);
+    lab.appendChild(el('span', 'keylbl', isExact ? 'black' : 'white'));
+    return lab;
+  };
+
+  box.appendChild(build('exact'));
+  box.appendChild(build('close'));
+  sync();
   return box;
+}
+
+// A function declaration, not a const: the state literal below is built before this point.
+function emptyKey() { return { exact: 0, close: 0 }; }
+
+/* Accepts the per-peg array older boards were saved with. */
+function normKey(k) {
+  const c = Array.isArray(k) ? keyCounts(k) : k || {};
+  const exact = clamp(Math.round(Number(c.exact)) || 0, [0, LEN]);
+  return { exact, close: clamp(Math.round(Number(c.close)) || 0, [0, LEN - exact]) };
+}
+
+function keyError(key) {
+  if (key.exact === LEN - 1 && key.close === 1) {
+    return (LEN - 1) + ' black and one white is impossible — one misplaced peg has nowhere else to go.';
+  }
+  return '';
 }
 
 function renderRows() {
@@ -220,13 +330,14 @@ function renderRows() {
   rows.innerHTML = '';
 
   state.guesses.forEach((g, gi) => {
-    const solved = keyCounts(g.key).exact === LEN;
-    const row = el('div', 'row' + (solved ? ' solved' : ''));
+    const row = el('div', 'row' + (g.key.exact === LEN ? ' solved' : ''));
     row.appendChild(el('div', 'idx', String(gi + 1)));
     row.appendChild(codeStrip(g.code));
-    row.appendChild(keyGrid(g.key, i => {
-      g.key[i] = (g.key[i] + 1) % 3;
-      save(); renderRows(); solve();
+    // Edited in place rather than re-rendered, so the spinner keeps focus.
+    row.appendChild(keyBox(g.key, () => {
+      row.classList.toggle('solved', g.key.exact === LEN);
+      $('err').textContent = keyError(g.key);
+      save(); renderWon(); solve();
     }));
     const del = el('button', 'del', '×');
     del.type = 'button';
@@ -244,7 +355,7 @@ function renderRows() {
   const row = el('div', 'row draft');
   row.appendChild(el('div', 'idx', String(state.guesses.length + 1)));
   row.appendChild(codeStrip(d.code, { slots: true, selected: state.sel }));
-  row.appendChild(keyGrid(d.key, i => { d.key[i] = (d.key[i] + 1) % 3; renderRows(); }));
+  row.appendChild(keyBox(d.key, () => { $('err').textContent = ''; }));
   const saveBtn = el('button', 'btn primary save', 'Save');
   saveBtn.type = 'button';
   saveBtn.id = 'saveGuess';
@@ -262,13 +373,16 @@ function renderRows() {
 function renderField(codes, animateIn) {
   const f = $('field');
   f.innerHTML = '';
+  f.style.setProperty('--candw', (LEN * 8 + 10) + 'px');
   state.fieldCodes = codes.slice(0, FIELD_MAX);
 
   if (!codes.length) {
     const box = el('div', 'field-empty');
-    box.appendChild(el('b', null, state.guesses.length ? 'Nothing fits.' : 'Every code is still possible.'));
+    box.appendChild(el('b', null, state.guesses.length ? 'Nothing found.' : 'Every code is still possible.'));
+    // Sampling can come up empty on a big board even when a code does fit, so the
+    // copy stops short of calling the rows wrong.
     box.appendChild(el('div', null, state.guesses.length
-      ? 'No code can produce all of those key pegs at once. Check the counts on each row — one of them is probably off by a peg.'
+      ? 'Either the rows disagree — check the counts, one is probably off by a peg — or the search came up empty, which gets likelier as the code gets longer. Raising the pool size or removing a row makes it try again.'
       : 'Add a guess and its key pegs to start cutting the field down.'));
     f.appendChild(box);
     return;
@@ -306,6 +420,10 @@ function renderStats() {
   if (s.attempts) {
     m += 'Threw <b>' + fmt(s.attempts) + '</b> random codes, kept <b>' + fmt(s.acceptedDistinct) + '</b>.';
   }
+  if (s.carried) {
+    m += (m ? '<br>' : '') + 'Carried <b>' + fmt(s.carried) + '</b> code' + (s.carried === 1 ? '' : 's') +
+      ' over from the last pool — they still fit every row.';
+  }
   if (s.repaired) {
     m += (m ? '<br>' : '') + 'Random sampling starved, so <b>' + fmt(s.repaired) + '</b> more ' +
       (s.repaired === 1 ? 'was' : 'were') +
@@ -336,27 +454,26 @@ function renderWon() {
   const box = $('wonBox');
   box.innerHTML = '';
   const last = state.guesses[state.guesses.length - 1];
-  if (last && keyCounts(last.key).exact === LEN) {
+  if (last && last.key.exact === LEN) {
     const w = el('div', 'won');
     w.appendChild(el('h3', null, 'Cracked it.'));
-    w.appendChild(el('p', null, 'Eight exact pegs on row ' + state.guesses.length + '. Clear the board to start another game.'));
+    w.appendChild(el('p', null, LEN + ' exact pegs on row ' + state.guesses.length + '. Clear the board to start another game.'));
     box.appendChild(w);
   }
 }
 
 /* ── the solver ──────────────────────────────────────────── */
 function constraints() {
-  return state.guesses.map(g => {
-    const { exact, close } = keyCounts(g.key);
-    return { code: g.code, target: packed(exact, close) };
-  });
+  return state.guesses.map(g => ({ code: g.code, target: packed(g.key.exact, g.key.close) }));
 }
 
 async function solve(animatedIn) {
   const run = ++state.run;
   const cons = constraints();
-  const target = state.poolSize;
-  const allowRepeats = state.allowRepeats;
+  // A tiny board can hold fewer codes than the pool asks for; without this the
+  // sampler would spend its whole budget looking for codes that do not exist.
+  const target = Math.min(state.poolSize, SPACE);
+  const allowRepeats = state.allowRepeats || !canDistinct();
   const bar = $('bar'), fill = bar.firstElementChild;
   bar.classList.add('on');
   state.solving = true;
@@ -365,7 +482,22 @@ async function solve(animatedIn) {
   const scratch = new Uint8Array(LEN);
   const seen = new Set();
   const pool = [];
-  let attempts = 0, accepted = 0, repaired = 0, exhaustive = false;
+  let attempts = 0, accepted = 0, repaired = 0, carried = 0, exhaustive = false;
+
+  // The last pool fits every row but, at most, the newest one — so its codes are
+  // either survivors outright or near misses worth restarting from. Survivors are
+  // held back until after the uniform phase so they cannot skew its acceptance
+  // rate, which is what the estimate below is built on.
+  const nearby = state.seeds.filter(c => c.length === LEN);
+  const survivors = nearby.filter(c => consistent(c, cons));
+  // Half the restarts start from a code that already fits, half from nothing.
+  // Seeded restarts converge far more often; random ones keep the pool from
+  // collapsing into one corner of the space, and both matter.
+  const seedFor = () => {
+    if (Math.random() < 0.5) return null;
+    return pool.length ? pool[randInt(pool.length)]
+      : nearby.length ? nearby[randInt(nearby.length)] : null;
+  };
 
   const CAP = Math.max(500000, target * 400);
   const REJECT_MS = 900;
@@ -389,13 +521,19 @@ async function solve(animatedIn) {
   }
   const acceptedDistinct = pool.length;
 
+  for (const c of survivors) {
+    if (pool.length >= target) break;
+    const k = c.join(',');
+    if (!seen.has(k)) { seen.add(k); pool.push(c); carried++; }
+  }
+
   // Guided top-up when uniform sampling can no longer find survivors.
   if (pool.length < target && cons.length) {
     const t1 = performance.now();
     let stale = 0;
     while (pool.length < target && performance.now() - t1 < 1400 && stale < 600) {
       for (let b = 0; b < 12 && pool.length < target && performance.now() - t1 < 1400; b++) {
-        if (hillClimb(scratch, cons, allowRepeats)) {
+        if (hillClimb(scratch, cons, allowRepeats, seedFor())) {
           const arr = Array.from(scratch);
           const k = arr.join(',');
           if (!seen.has(k)) { seen.add(k); pool.push(arr); repaired++; stale = 0; continue; }
@@ -410,12 +548,16 @@ async function solve(animatedIn) {
   }
 
   state.pool = pool;
+  // An empty pool keeps the old seeds: the search may simply have come up short,
+  // and starting the next attempt from nothing would guarantee it does again.
+  if (pool.length) state.seeds = pool;
   state.stats = {
     pool: pool.length,
     attempts,
     accepted,
     acceptedDistinct,
     repaired,
+    carried,
     exhaustive,
     estLeft: accepted ? (accepted / attempts) * SPACE : (3 / Math.max(attempts, 1)) * SPACE
   };
@@ -508,7 +650,7 @@ function syncTyped() {
 
 function clearDraft() {
   state.draft.code = Array(LEN).fill(null);
-  state.draft.key = Array(LEN).fill(0);
+  state.draft.key = emptyKey();
   state.sel = 0;
   $('typed').value = '';
   $('err').textContent = '';
@@ -519,17 +661,14 @@ async function addGuess() {
   const d = state.draft;
   const err = $('err');
   if (d.code.some(c => c == null)) {
-    err.textContent = 'Fill all eight slots before adding the guess.';
+    err.textContent = 'Fill all ' + LEN + ' slots before adding the guess.';
     return;
   }
-  const { exact, close } = keyCounts(d.key);
-  if (exact === LEN - 1 && close === 1) {
-    err.textContent = 'Seven exact and one close is impossible — one misplaced peg has nowhere else to go.';
-    return;
-  }
+  const bad = keyError(d.key);
+  if (bad) { err.textContent = bad; return; }
   err.textContent = '';
 
-  const guess = { code: d.code.slice(), key: d.key.slice() };
+  const guess = { code: d.code.slice(), key: { ...d.key } };
   await cullField(guess);
 
   state.guesses.push(guess);
@@ -542,8 +681,7 @@ async function addGuess() {
 
 /* Fade out the strips that this guess rules out, before resampling. */
 function cullField(guess) {
-  const c = keyCounts(guess.key);
-  const target = packed(c.exact, c.close);
+  const target = packed(guess.key.exact, guess.key.close);
   const strips = $('field').querySelectorAll('.cand');
   if (!strips.length) return Promise.resolve();
   let culled = 0;
@@ -602,6 +740,8 @@ function stepScale(dir) {
 function save() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
+      len: LEN,
+      ncol: NCOL,
       guesses: state.guesses,
       poolSize: state.poolSize,
       allowRepeats: state.allowRepeats,
@@ -616,11 +756,12 @@ function load() {
     const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return;
     const d = JSON.parse(raw);
+    if (d.len || d.ncol) configure(d.len || LEN, d.ncol || NCOL);
     if (Array.isArray(d.guesses)) {
-      state.guesses = d.guesses.filter(g =>
-        Array.isArray(g.code) && g.code.length === LEN &&
-        g.code.every(v => Number.isInteger(v) && v >= 0 && v < NCOL) &&
-        Array.isArray(g.key) && g.key.length === LEN);
+      state.guesses = d.guesses
+        .filter(g => g && Array.isArray(g.code) && g.code.length === LEN &&
+          g.code.every(v => Number.isInteger(v) && v >= 0 && v < NCOL))
+        .map(g => ({ code: g.code, key: normKey(g.key) }));
     }
     if (d.poolSize) state.poolSize = d.poolSize;
     if (typeof d.allowRepeats === 'boolean') state.allowRepeats = d.allowRepeats;
@@ -629,13 +770,58 @@ function load() {
   } catch (e) { /* ignore a corrupt board */ }
 }
 
+/* ── board size ──────────────────────────────────────────── */
+function renderSpec() {
+  $('chipSpace').textContent = fmt(SPACE);
+  $('codeLen').value = LEN;
+  $('numPegs').value = NCOL;
+  const range = $('pegRange');
+  range.textContent = '0–' + (NCOL - 1);
+  range.parentElement.title = 'Pegs are numbered 0 to ' + (NCOL - 1) + '.';
+
+  // Distinct pegs need at least as many pegs as slots.
+  const box = $('repeats');
+  box.disabled = !canDistinct();
+  box.checked = state.allowRepeats || !canDistinct();
+  box.parentElement.title = canDistinct() ? '' :
+    'A ' + LEN + '-slot code cannot avoid repeats with only ' + NCOL + ' pegs.';
+
+  const sample = [];
+  for (let i = 0; i < LEN; i++) sample.push(randInt(NCOL));
+  $('typed').placeholder = 'e.g. ' + sample.join(' ');
+}
+
+/* Resize the board. Recorded guesses belong to the old size, so they go. */
+function applyConfig(len, ncol) {
+  if (len === LEN && ncol === NCOL) return;
+  configure(len, ncol);
+  state.guesses = [];
+  state.draft = { code: Array(LEN).fill(null), key: emptyKey() };
+  state.sel = 0;
+  state.suggestion = null;
+  state.pool = [];
+  state.seeds = [];
+  state.fieldCodes = [];
+  $('typed').value = '';
+  $('err').textContent = '';
+  renderSpec();
+  renderRail();
+  renderPalette();
+  renderRows();
+  renderWon();
+  renderSuggestion();
+  save();
+  solve();
+}
+
 /* ── wiring ──────────────────────────────────────────────── */
 function init() {
   load();
+  // load() may have resized the board, and the draft row was built for the default.
+  state.draft = { code: Array(LEN).fill(null), key: emptyKey() };
 
-  $('chipSpace').textContent = fmt(SPACE);
+  renderSpec();
   $('poolSize').value = state.poolSize;
-  $('repeats').checked = state.allowRepeats;
   $('optimise').checked = state.optimise;
 
   applyScale();
@@ -679,6 +865,16 @@ function init() {
     e.target.value = n;
     state.poolSize = n;
     save(); solve();
+  });
+  $('codeLen').addEventListener('change', e => {
+    const n = clamp(parseInt(e.target.value, 10) || LEN, LIMITS.len);
+    e.target.value = n;
+    applyConfig(n, NCOL);
+  });
+  $('numPegs').addEventListener('change', e => {
+    const n = clamp(parseInt(e.target.value, 10) || NCOL, LIMITS.ncol);
+    e.target.value = n;
+    applyConfig(LEN, n);
   });
   $('repeats').addEventListener('change', e => { state.allowRepeats = e.target.checked; save(); solve(); });
   $('optimise').addEventListener('change', e => { state.optimise = e.target.checked; save(); });

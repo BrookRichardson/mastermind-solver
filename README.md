@@ -1,8 +1,10 @@
 # Decoder — a Mastermind solver
 
-A single web page ([Link To Live Page](https://brookrichardson.github.io/mastermind-solver/)) that cracks 8-peg Mastermind codes drawn from 15 colours (pegs numbered 0–14).
-Record the guesses you have already played and the key pegs you got back; the solver keeps a pool of
-codes that are still possible and hands you the next guess.
+A single web page ([Link To Live Page](https://brookrichardson.github.io/mastermind-solver/)) that
+cracks Mastermind codes. The board defaults to an 8-slot code drawn from 15 pegs (numbered 0–14),
+but both the code length and the number of pegs are settings — anything from 2 to 16 slots over 2
+to 24 pegs. Record the guesses you have already played and the key pegs you got back; the solver
+keeps a pool of codes that are still possible and hands you the next guess.
 
 Open `index.html` in a browser. No build, no server, no dependencies. The board is saved in
 `localStorage`, so a game in progress survives a reload.
@@ -11,21 +13,30 @@ Open `index.html` in a browser. No build, no server, no dependencies. The board 
 
 1. **Enter a guess.** Click a slot then a peg, or type the numbers into the text field
    (`3 7 12 0 5 5 9 14`). Keyboard also works: digits fill the selected slot, arrows move, backspace clears.
-2. **Enter the key pegs.** Click a key peg to cycle it: empty → filled (right peg, right slot) → hollow
-   (right peg, wrong slot). Only the counts matter, not which key slot you use.
+2. **Enter the key pegs.** Type the counts into the two boxes on the row: **black** (filled dot) is a
+   right peg in the right slot, **white** (hollow dot) is a right peg in the wrong slot. The two clamp
+   against each other, so they can never add up to more than the code length.
 3. **Add guess.** The candidate field culls every code the new row rules out, then resamples.
 4. **Suggest a guess** picks from the survivors and tells you how much of the field it expects to cut.
    **Use it** loads it into the entry row.
 
-Got a key peg wrong? Click it on the recorded row to fix it, or remove the row with `×`. Either way the
-pool is rebuilt immediately.
+Got a count wrong? Retype it on the recorded row, or remove the row with `×`. Either way the pool is
+rebuilt immediately.
 
 ### Settings
 
+- **Code length** — how many slots the code has, 2 to 16 (default 8).
+- **Pegs** — how many colours to draw from, 2 to 24 (default 15). The range beside the field shows how
+  they are numbered, always from 0. The palette is picked to keep them as far apart as possible: up to
+  15 they are hand-chosen colours, beyond that a generated wheel.
+- Changing either one starts a fresh board — recorded rows belong to the size they were played at. The
+  masthead chip tracks the search space the new size implies.
 - **Pool size** — how many candidate codes to keep (default 1000). Bigger means better guess selection
   and slower solves.
 - **Code can repeat pegs** — turn off if your game's answer never repeats a colour. Sampling then draws
-  from the 259,459,200 orderings of 8 distinct pegs instead of all 15⁸.
+  from the orderings of distinct pegs instead of every code; at the default size that is 259,459,200
+  orderings rather than all 15⁸. The option is unavailable when the code is longer than the peg set,
+  since a code with more slots than pegs has to repeat one.
 - **Pick the most informative guess** — off draws a survivor at random; on tries 80 survivors against
   400 others and keeps whichever splits the field smallest.
 - **Text size** — the `−` / `+` buttons in the masthead scale the whole board between 80% and 160%
@@ -41,20 +52,35 @@ you recorded.
 **Uniform sampling.** The solver throws random codes at the constraints and keeps the ones that survive,
 until the pool is full or it runs out of budget. This is the honest method: the survivors are a uniform
 sample of what remains, so the acceptance rate estimates how many codes are still standing across the
-whole 2,562,890,625-code space.
+whole space.
 
-**Guided repair.** Uniform sampling collapses fast. By the third or fourth guess fewer than one code in
-a million survives, and the pool would come back nearly empty. When that happens the solver switches to
-a hill-climb: start from a random code, and repeatedly change the single peg that most reduces the total
-mismatch against your rows until it reaches zero. Those codes are still genuinely consistent, but they
-are no longer a uniform sample — the stats panel says so whenever repair contributed.
+**Carry-over.** Codes from the previous pool that still fit every row — including the row you just added
+— are kept rather than thrown away. They cost nothing to verify and they are the last thing to survive
+once random sampling dries up.
 
-**Estimating what's left.** With survivors from uniform sampling, `accepted / attempted × 15⁸`. With
-none, the panel shows a range: the pool size as a floor, and the 95% rule-of-three ceiling
-(`3 / attempted × 15⁸`) as the roof. If guided search stops finding anything new for 600 tries, the pool
-is reported as the exact remaining set.
+**Guided repair.** Uniform sampling collapses fast. At the default size, by the third or fourth guess
+fewer than one code in a million survives, and the pool would come back nearly empty. When that happens
+the solver switches to a hill-climb: repeatedly change the single peg that most reduces the total
+mismatch against your rows, until it reaches zero. Half of those climbs start from a random code and
+half from a kicked copy of one that already fits — seeded restarts succeed far more often, random ones
+keep the pool from collapsing into one corner of the space. Repaired codes are still genuinely
+consistent, but they are no longer a uniform sample; the stats panel says so whenever repair contributed.
 
-Typical result: 9–10 guesses to crack a code, with a 1000-code pool.
+**Estimating what's left.** With survivors from uniform sampling, `accepted / attempted × search space`.
+With none, the panel shows a range: the pool size as a floor, and the 95% rule-of-three ceiling
+(`3 / attempted × search space`) as the roof. If guided search stops finding anything new for 600 tries,
+the pool is reported as the exact remaining set.
+
+Typical result at the default 8 slots over 15 pegs: 9–10 guesses to crack a code, with a 1000-code pool.
+
+### Where it strains
+
+Difficulty scales with the code length, not the peg count. Long codes eventually leave a remaining set
+so small that neither random sampling nor guided repair finds it, and the pool comes back empty — the
+page says so, and does not claim your rows are wrong, because they usually are not. In testing, codes up
+to about 10 slots behave like the default; at 12 slots roughly half the games hit a dead end late on.
+Removing a row or raising the pool size gives the search another go, and the solver keeps the last live
+pool around to restart from rather than beginning again from nothing.
 
 ## Tests
 
@@ -63,9 +89,12 @@ node test-solver.js
 ```
 
 Loads the solver core straight out of `decoder.js` (everything above the DOM section) and checks scoring
-against known cases and for symmetry, checks that repaired codes really satisfy every constraint in both
-repeat modes, then plays 20 full games — asserting on every turn that each pooled code is consistent
-with every row, and that the game is solved inside 14 turns.
+against known cases, then re-checks the general laws — symmetry, `exact + close ≤ code length`, unique
+score packing, one distinct colour per peg — across eight board sizes from 2×2 to 16×24. It checks that
+size limits clamp, that repaired codes really satisfy every constraint in both repeat modes and at
+several sizes, and that a code longer than its peg set falls back to repeats. Then it plays full games
+at six sizes through the same pipeline the page runs — asserting on every turn that each pooled code is
+consistent with every row, and reporting how often the two longest boards starve.
 
 ## Files
 

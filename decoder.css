@@ -83,22 +83,25 @@ button.slot:hover .hole{box-shadow:inset 0 3px 6px rgba(0,0,0,.9), 0 0 0 2px rgb
 .row.solved{border-color:rgba(217,164,65,.55);background:rgba(217,164,65,.09)}
 .row .idx{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);text-align:right}
 .code{display:flex;gap:5px;flex-wrap:wrap}
-.keys{display:flex;align-items:center;gap:10px}
-.keygrid{display:grid;grid-template-columns:repeat(4,12px);grid-auto-rows:12px;gap:4px;padding:6px 7px;border-radius:8px;
+.keys{display:flex;align-items:center;gap:7px}
+.keyin{display:flex;align-items:center;gap:6px;padding:4px 8px 4px 7px;border-radius:8px;cursor:text;
   background:var(--well);box-shadow:inset 0 2px 4px rgba(0,0,0,.8)}
-.key{width:12px;height:12px;border-radius:50%;padding:0;cursor:pointer;
-  background:rgba(240,232,218,.07);box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
-.key.exact{background:var(--bone);box-shadow:0 0 0 1px rgba(0,0,0,.4), inset 0 -1px 1px rgba(0,0,0,.3)}
-.key.close{background:transparent;box-shadow:inset 0 0 0 2px var(--bone)}
-.tally{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);white-space:nowrap;line-height:1.4}
-.tally b{color:var(--bone);font-weight:500}
+.keyin:focus-within{box-shadow:inset 0 2px 4px rgba(0,0,0,.8), 0 0 0 2px var(--brass)}
+.keyin .k2{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+/* Beats the shared input[type=number] rule, which is more specific than a bare class. */
+.keyin input.keynum{width:46px;padding:2px 0 2px 4px;text-align:center;
+  background:none;border:none;border-radius:0;
+  font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;color:var(--bone)}
+.keyin input.keynum:focus{outline:none}
+.keylbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--dimmer)}
 .btn.save{padding:7px 13px;font-size:12.5px;white-space:nowrap}
 .del{color:var(--dimmer);font-size:16px;line-height:1;padding:4px;border-radius:6px}
 .del:hover{color:var(--bad);background:rgba(226,85,74,.1)}
 
 /* entry */
 .entry-hint{font-size:12.5px;color:var(--dim);margin:16px 0 8px}
-.palette{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:6px;padding:11px;border-radius:11px;
+.palette{display:grid;grid-template-columns:repeat(var(--pcols,15),minmax(0,1fr));gap:6px;padding:11px;border-radius:11px;
   background:rgba(0,0,0,.25);border:1px solid var(--rule)}
 .palette .peg{cursor:pointer;width:100%;height:auto;aspect-ratio:1;font-size:10.5px}
 .palette .peg:hover{transform:translateY(-2px)}
@@ -127,7 +130,7 @@ input::placeholder{color:var(--dimmer)}
 .sugg.empty .sugg-lbl{color:var(--dimmer)}
 
 /* candidate field */
-.field{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:7px 9px;
+.field{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--candw,66px),1fr));gap:7px 9px;
   padding:15px;border-radius:11px;background:var(--well);box-shadow:inset 0 3px 10px rgba(0,0,0,.75);
   min-height:300px;max-height:clamp(300px,calc(56vh / var(--scale,1)),560px);overflow-y:auto;align-content:start;
   scrollbar-width:thin;scrollbar-color:rgba(240,232,218,.16) transparent}
@@ -158,6 +161,9 @@ input::placeholder{color:var(--dimmer)}
   font-size:13px;color:var(--dim)}
 .settings label{display:flex;gap:7px;align-items:center;cursor:pointer}
 .settings input[type=number]{width:80px;padding:6px 8px}
+.settings .range{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);letter-spacing:.04em}
+.settings input[type=checkbox]:disabled{opacity:.4}
+.settings label:has(input:disabled){opacity:.55;cursor:not-allowed}
 .settings #reset{margin-left:auto}
 input[type=checkbox]{accent-color:var(--brass);width:15px;height:15px}
 .won{margin-top:16px;padding:15px 16px;border-radius:11px;background:rgba(217,164,65,.12);border:1px solid rgba(217,164,65,.4)}
@@ -167,8 +173,9 @@ input[type=checkbox]{accent-color:var(--brass);width:15px;height:15px}
   display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 .legend span{display:flex;gap:6px;align-items:center}
 .legend .k2{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
-.legend .k2.filled{background:var(--bone)}
-.legend .k2.ring{box-shadow:inset 0 0 0 2px var(--bone)}
+.legend b{color:var(--bone);font-weight:500}
+.k2.filled{background:var(--bone);box-shadow:0 0 0 1px rgba(0,0,0,.4), inset 0 -1px 1px rgba(0,0,0,.3)}
+.k2.ring{box-shadow:inset 0 0 0 2px var(--bone)}
 footer{margin-top:26px;font-size:12px;color:var(--dimmer);line-height:1.6;max-width:74ch}
 
 /* Breakpoints run off data-w, which the script derives from viewport width / text scale,
@@ -183,7 +190,7 @@ footer{margin-top:26px;font-size:12px;color:var(--dimmer);line-height:1.6;max-wi
 :root[data-w="sm"] .row.draft{grid-template-columns:1fr}
 :root[data-w="sm"] .row.draft .save{justify-self:start}
 :root[data-w="sm"] .row .idx{text-align:left}
-:root[data-w="sm"] .field{grid-template-columns:repeat(auto-fill,minmax(58px,1fr))}
+:root[data-w="sm"] .field{grid-template-columns:repeat(auto-fill,minmax(calc(var(--candw,66px) - 8px),1fr))}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms !important;transition-duration:.001ms !important}
 }

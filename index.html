@@ -18,8 +18,6 @@
       <span class="sub">consistency solver</span>
     </div>
     <div class="spec">
-      <span class="chip">code length <b id="chipLen">8</b></span>
-      <span class="chip">pegs <b>0&ndash;14</b></span>
       <span class="chip">search space <b id="chipSpace">2,562,890,625</b></span>
       <div class="zoom" role="group" aria-label="Text size">
         <button class="zbtn" id="zoomOut" title="Smaller text (press &minus;)" aria-label="Smaller text">&minus;</button>
@@ -39,9 +37,9 @@
       </div>
       <div class="panel-bd">
         <div class="legend">
-          <span><i class="k2 filled"></i> right peg, right slot</span>
-          <span><i class="k2 ring"></i> right peg, wrong slot</span>
-          <span>click a key peg to change it</span>
+          <span><i class="k2 filled"></i> <b>black</b> &mdash; right peg, right slot</span>
+          <span><i class="k2 ring"></i> <b>white</b> &mdash; right peg, wrong slot</span>
+          <span>count them into the two boxes on the row</span>
         </div>
 
         <div class="rows" id="rows"></div>
@@ -70,6 +68,8 @@
         </div>
       </div>
       <div class="settings">
+        <label>Code length <input type="number" id="codeLen" min="2" max="16" step="1" value="8"></label>
+        <label>Pegs <input type="number" id="numPegs" min="2" max="24" step="1" value="15"><span class="range" id="pegRange">0&ndash;14</span></label>
         <label>Pool size <input type="number" id="poolSize" min="50" max="20000" step="50" value="1000"></label>
         <label><input type="checkbox" id="repeats" checked> Code can repeat pegs</label>
         <label><input type="checkbox" id="optimise" checked> Pick the most informative guess</label>
