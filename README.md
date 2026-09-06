@@ -11,17 +11,22 @@ Open `index.html` in a browser. No build, no server, no dependencies. The board 
 
 ## Using it
 
-1. **Enter a guess.** Click a slot then a peg, or type the numbers into the text field
-   (`3 7 12 0 5 5 9 14`). Keyboard also works: digits fill the selected slot, arrows move, backspace clears.
-2. **Enter the key pegs.** Type the counts into the two boxes on the row: **black** (filled dot) is a
-   right peg in the right slot, **white** (hollow dot) is a right peg in the wrong slot. The two clamp
-   against each other, so they can never add up to more than the code length.
-3. **Add guess.** The candidate field culls every code the new row rules out, then resamples.
-4. **Suggest a guess** picks from the survivors and tells you how much of the field it expects to cut.
-   **Use it** loads it into the entry row.
+Decoder does not know your code — you play the game elsewhere and record what happened here.
+
+1. **Get a guess.** **Suggest a guess** picks one from the surviving codes and says how much of the
+   field it expects to cut; **Use it** loads it into the entry row. Or enter your own: click a slot then
+   a peg, or type the numbers into the text field (`3 7 12 0 5 5 9 14`). Keyboard also works — digits
+   fill the selected slot, arrows move, backspace clears. Peg numbers are only labels; match them to
+   whatever colours your set uses.
+2. **Play it in your game**, and count the key pegs it earned.
+3. **Record those counts** in the two boxes on the row: **black** is a right peg in the right slot,
+   **white** is a right peg in the wrong slot. The two clamp against each other, so they can never add
+   up to more than the code length.
+4. **Add guess.** The candidate field culls every code the new row rules out, then resamples.
 
 Got a count wrong? Retype it on the recorded row, or remove the row with `×`. Either way the pool is
-rebuilt immediately.
+rebuilt immediately. Until the first row is recorded the field shows those steps instead of candidates,
+because nothing has been ruled out yet.
 
 ### Settings
 
