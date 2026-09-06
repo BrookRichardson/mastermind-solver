@@ -25,6 +25,9 @@
         <button class="zbtn" id="zoomIn" title="Bigger text (press +)" aria-label="Bigger text">+</button>
       </div>
     </div>
+    <p class="lede">Play Mastermind wherever you like &mdash; on paper, in an app, against a friend.
+      Record each guess here with the key pegs it earned, and Decoder keeps every code that still
+      fits and picks your next guess.</p>
   </header>
   <div class="rail" id="rail" aria-hidden="true"></div>
 
@@ -36,25 +39,6 @@
         <span class="note" id="rowCount">no guesses yet</span>
       </div>
       <div class="panel-bd">
-        <div class="legend">
-          <span><i class="k2 filled"></i> <b>black</b> &mdash; right peg, right slot</span>
-          <span><i class="k2 ring"></i> <b>white</b> &mdash; right peg, wrong slot</span>
-          <span>count them into the two boxes on the row</span>
-        </div>
-
-        <div class="rows" id="rows"></div>
-
-        <p class="entry-hint">Pick a slot, then a peg. Or type the code as numbers.</p>
-        <div class="palette" id="palette"></div>
-
-        <div class="entry-tools">
-          <input type="text" id="typed" placeholder="e.g. 3 7 12 0 5 5 9 14" aria-label="Type the code as numbers" autocomplete="off" spellcheck="false">
-          <button class="btn" id="clearDraft">Clear row</button>
-        </div>
-        <div class="err" id="err" role="status"></div>
-
-        <div id="wonBox"></div>
-
         <div class="sugg empty" id="sugg">
           <div class="sugg-hd">
             <span class="sugg-lbl">Next guess</span>
@@ -64,8 +48,28 @@
             </span>
           </div>
           <div class="code" id="suggCode"></div>
-          <div class="why" id="suggWhy">Nothing suggested yet.</div>
+          <div class="why" id="suggWhy">Start here &mdash; ask for an opening guess to play.</div>
         </div>
+
+        <div class="legend">
+          <span><i class="k2 black"></i> <b>black</b> &mdash; right peg, right slot</span>
+          <span><i class="k2 white"></i> <b>white</b> &mdash; right peg, wrong slot</span>
+          <span>you record these yourself</span>
+        </div>
+
+        <div class="rows" id="rows"></div>
+
+        <div id="wonBox"></div>
+
+        <p class="entry-hint">Pick a slot, then a peg &mdash; or type the code as numbers. The numbers
+          are just labels, so match them to your own colours however you like.</p>
+        <div class="palette" id="palette"></div>
+
+        <div class="entry-tools">
+          <input type="text" id="typed" placeholder="e.g. 3 7 12 0 5 5 9 14" aria-label="Type the code as numbers" autocomplete="off" spellcheck="false">
+          <button class="btn" id="clearDraft">Clear row</button>
+        </div>
+        <div class="err" id="err" role="status"></div>
       </div>
       <div class="settings">
         <label>Code length <input type="number" id="codeLen" min="2" max="16" step="1" value="8"></label>

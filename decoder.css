@@ -45,6 +45,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   font-size:14px;line-height:1;color:var(--dim);transition:background .14s ease,color .14s ease}
 .zbtn:hover:not(:disabled){background:rgba(240,232,218,.1);color:var(--bone)}
 .zbtn:disabled{opacity:.3;cursor:not-allowed}
+.lede{flex:1 0 100%;max-width:68ch;margin:14px 0 0;font-size:14px;line-height:1.6;color:var(--dim)}
 .rail{display:flex;gap:3px;margin:16px 0 22px;height:5px}
 .rail i{flex:1;border-radius:2px;opacity:.85}
 
@@ -120,7 +121,7 @@ input::placeholder{color:var(--dimmer)}
 .err{color:var(--bad);font-size:12.5px;margin-top:10px;min-height:1.2em}
 
 /* suggestion */
-.sugg{margin-top:16px;padding:14px;border-radius:11px;border:1px dashed rgba(217,164,65,.35);background:rgba(217,164,65,.05)}
+.sugg{padding:14px;border-radius:11px;border:1px dashed rgba(217,164,65,.35);background:rgba(217,164,65,.05)}
 .sugg-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .sugg-btns{display:flex;gap:8px}
 .sugg-lbl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--brass)}
@@ -144,6 +145,17 @@ input::placeholder{color:var(--dimmer)}
 .field-empty{grid-column:1/-1;align-self:center;text-align:center;color:var(--dim);font-size:13.5px;padding:44px 20px}
 .field-empty b{display:block;font-family:'Fraunces',Georgia,serif;font-size:19px;color:var(--bone);margin-bottom:7px;
   font-variation-settings:'SOFT' 45,'WONK' 1;font-weight:700}
+.howto{grid-column:1/-1;align-self:center;justify-self:center;max-width:46ch;padding:30px 22px;color:var(--dim);font-size:13.5px}
+.howto>b{display:block;font-family:'Fraunces',Georgia,serif;font-size:19px;color:var(--bone);
+  font-variation-settings:'SOFT' 45,'WONK' 1;font-weight:700;margin-bottom:14px}
+.howto ol{margin:0;padding:0;list-style:none;counter-reset:step}
+.howto li{position:relative;padding:0 0 13px 30px;line-height:1.55;counter-increment:step}
+.howto li:last-child{padding-bottom:0}
+.howto li::before{content:counter(step);position:absolute;left:0;top:1px;width:19px;height:19px;
+  border-radius:50%;display:grid;place-items:center;
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--brass);
+  border:1px solid rgba(217,164,65,.4);background:rgba(217,164,65,.08)}
+.howto li b{color:var(--bone);font-weight:500}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--rule);border-top:1px solid var(--rule);
   border-radius:0 0 var(--r) var(--r);overflow:hidden}
 .stat{background:var(--board);padding:13px 16px}
@@ -169,13 +181,13 @@ input[type=checkbox]{accent-color:var(--brass);width:15px;height:15px}
 .won{margin-top:16px;padding:15px 16px;border-radius:11px;background:rgba(217,164,65,.12);border:1px solid rgba(217,164,65,.4)}
 .won h3{font-size:19px;margin-bottom:4px}
 .won p{margin:0;font-size:13px;color:var(--dim)}
-.legend{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);margin:0 0 12px;
+.legend{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dimmer);margin:18px 0 12px;
   display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 .legend span{display:flex;gap:6px;align-items:center}
 .legend .k2{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
 .legend b{color:var(--bone);font-weight:500}
-.k2.filled{background:var(--bone);box-shadow:0 0 0 1px rgba(0,0,0,.4), inset 0 -1px 1px rgba(0,0,0,.3)}
-.k2.ring{box-shadow:inset 0 0 0 2px var(--bone)}
+.k2.black{background:#17131d;box-shadow:inset 0 0 0 1.5px rgba(240,232,218,.5), 0 1px 2px rgba(0,0,0,.6)}
+.k2.white{background:var(--bone);box-shadow:0 0 0 1px rgba(0,0,0,.45), inset 0 -1px 1px rgba(0,0,0,.28)}
 footer{margin-top:26px;font-size:12px;color:var(--dimmer);line-height:1.6;max-width:74ch}
 
 /* Breakpoints run off data-w, which the script derives from viewport width / text scale,

@@ -278,7 +278,7 @@ function keyBox(key, onChange) {
     const isExact = kind === 'exact';
     const lab = el('label', 'keyin');
     lab.title = isExact ? 'Black pegs — right peg, right slot' : 'White pegs — right peg, wrong slot';
-    lab.appendChild(el('i', 'k2 ' + (isExact ? 'filled' : 'ring')));
+    lab.appendChild(el('i', 'k2 ' + (isExact ? 'black' : 'white')));
 
     const input = document.createElement('input');
     input.type = 'number';
@@ -356,11 +356,11 @@ function renderRows() {
   row.appendChild(el('div', 'idx', String(state.guesses.length + 1)));
   row.appendChild(codeStrip(d.code, { slots: true, selected: state.sel }));
   row.appendChild(keyBox(d.key, () => { $('err').textContent = ''; }));
-  const saveBtn = el('button', 'btn primary save', 'Save');
+  const saveBtn = el('button', 'btn primary save', 'Add guess');
   saveBtn.type = 'button';
   saveBtn.id = 'saveGuess';
-  saveBtn.title = 'Record this guess';
-  saveBtn.setAttribute('aria-label', 'Save guess ' + (state.guesses.length + 1));
+  saveBtn.title = 'Record this guess and the key pegs it earned';
+  saveBtn.setAttribute('aria-label', 'Add guess ' + (state.guesses.length + 1));
   saveBtn.disabled = state.solving;
   saveBtn.addEventListener('click', addGuess);
   row.appendChild(saveBtn);
@@ -370,11 +370,36 @@ function renderRows() {
   $('rowCount').textContent = n === 0 ? 'no guesses yet' : n + (n === 1 ? ' guess' : ' guesses') + ' recorded';
 }
 
+/* The loop, spelled out. Shown until the first row is recorded, because until
+   then the field can only draw a random sample of the whole space. */
+function howTo() {
+  const box = el('div', 'howto');
+  box.appendChild(el('b', null, 'How this works'));
+  const ol = el('ol');
+  [['Ask for a guess', ' above, or enter one of your own below.'],
+   ['Play it in your game', ', then count the key pegs it earned.'],
+   ['Add the guess', ' with those counts. Every code that could not have produced them disappears, and what is left shows up here.']
+  ].forEach(([lead, rest]) => {
+    const li = el('li');
+    li.appendChild(el('b', null, lead));
+    li.appendChild(document.createTextNode(rest));
+    ol.appendChild(li);
+  });
+  box.appendChild(ol);
+  return box;
+}
+
 function renderField(codes, animateIn) {
   const f = $('field');
   f.innerHTML = '';
   f.style.setProperty('--candw', (LEN * 8 + 10) + 'px');
   state.fieldCodes = codes.slice(0, FIELD_MAX);
+
+  if (!state.guesses.length) {
+    state.fieldCodes = [];
+    f.appendChild(howTo());
+    return;
+  }
 
   if (!codes.length) {
     const box = el('div', 'field-empty');
@@ -399,6 +424,13 @@ function renderField(codes, animateIn) {
 function renderStats() {
   const s = state.stats;
   if (!s) return;
+
+  if (!state.guesses.length) {
+    $('sPool').textContent = $('sRate').textContent = $('sLeft').textContent = '—';
+    $('fieldNote').textContent = 'nothing ruled out yet';
+    $('method').innerHTML = '';
+    return;
+  }
   $('sPool').textContent = fmt(s.pool);
   $('sRate').textContent = s.attempts
     ? (s.accepted ? '1 in ' + fmt(s.attempts / s.accepted) : '< 1 in ' + fmt(s.attempts / 3))
@@ -441,7 +473,9 @@ function renderSuggestion() {
   if (!state.suggestion) {
     box.classList.add('empty');
     $('useSugg').disabled = true;
-    why.textContent = state.pool.length ? 'Nothing suggested yet.' : 'No candidates to suggest from.';
+    why.textContent = !state.pool.length ? 'No candidates to suggest from.'
+      : state.guesses.length ? 'Nothing suggested yet.'
+      : 'Start here — ask for an opening guess to play.';
     return;
   }
   box.classList.remove('empty');
